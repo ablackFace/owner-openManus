@@ -1,5 +1,6 @@
 import asyncio
 
+from app.llm import LLM
 from app.logger import logger
 
 
@@ -19,5 +20,11 @@ async def main():
             break
 
 
+async def test():
+    llm = LLM()
+    response = await llm.ask("你是谁？")
+    print(response)
+
 if __name__ == "__main__":
-    asyncio.run(main())
+    # asyncio.run(main())
+    asyncio.run(test())
