@@ -22,8 +22,18 @@ async def main():
 
 async def test():
     llm = LLM()
-    response = await llm.ask("你是谁？")
+    response = await llm.ask(
+        [
+            {"role": "system", "content": "You are a helpful assistant."},
+            {
+                "role": "system",
+                "content": "你是一个 ReAct Agent 智能体、你可以执行一些工具来完成任务。",
+            },
+            {"role": "user", "content": "你是谁？,你必须使用 markdown 格式回答"},
+        ]
+    )
     print(response)
+
 
 if __name__ == "__main__":
     # asyncio.run(main())
