@@ -1,4 +1,6 @@
-from app.tool.tool_collection import BaseTool
+from typing import Any
+from app.tool.base import BaseTool
+
 
 NAME = "browser_use"
 _BROWSER_DESCRIPTION = """
@@ -74,3 +76,6 @@ class BrowserUseTool(BaseTool):
             "scroll": ["scroll_amount"],
         },
     }
+
+    def execute(self, **kwargs) -> Any:
+        pass

@@ -1,12 +1,5 @@
-from pydantic import Field
-
-from app.tool.bower_use_tool import BrowserUseTool
-from app.tool.tool_collection import ToolCollection
+from app.agent.tool_call import ToolCallAgent
 
 
-class Manus:
+class Manus(ToolCallAgent):
     name: str = "Manus"
-
-    available_tools: ToolCollection = Field(
-        default_factory=lambda: ToolCollection(BrowserUseTool())
-    )

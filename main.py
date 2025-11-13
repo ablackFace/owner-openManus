@@ -1,10 +1,14 @@
 import asyncio
 
+from app.agent.manus import Manus
 from app.llm import LLM
 from app.logger import logger
 
 
 async def main():
+
+    manus = Manus()
+
     while True:
         try:
             prompt = input("输入你的问题 (输入 exit, quit, bye 退出): ")
@@ -13,8 +17,7 @@ async def main():
                 logger.info("Goodbye!")
                 break
 
-            logger.warning("Processing your request...")
-            print(f"Assistant: {prompt}")
+            await manus.run(prompt)
         except KeyboardInterrupt:
             print("Goodbye!")
             break
@@ -36,5 +39,5 @@ async def test():
 
 
 if __name__ == "__main__":
-    # asyncio.run(main())
-    asyncio.run(test())
+    asyncio.run(main())
+    # asyncio.run(test())
