@@ -1,9 +1,17 @@
-from typing import Dict, List, Optional, Self, Union
+from typing import Dict, List, Literal, Optional, Self, Union
 
-from openai import AsyncOpenAI
+from loguru import logger
+from openai import (
+    APIError,
+    AsyncOpenAI,
+    AuthenticationError,
+    OpenAIError,
+    RateLimitError,
+)
 
 from app.config import DEFAULT_LLM_NAME, LLMSettings, config
 from app.schema import Message
+from tenacity import retry, stop_after_attempt, wait_random_exponential
 
 
 class LLM:
@@ -113,3 +121,91 @@ class LLM:
                 )
 
         return formatted_messages
+
+    @retry(
+        wait=wait_random_exponential(min=1, max=60),
+        stop=stop_after_attempt(6),
+    )
+    async def ask_tool(
+        self,
+        messages: List[Union[dict, Message]],
+        system_msgs: Optional[List[Union[dict, Message]]] = None,
+        timeout: int = 60,
+        tools: Optional[List[dict]] = None,
+        tool_choice: Literal["none", "auto", "required"] = "auto",
+        temperature: Optional[float] = None,
+        **kwargs,
+    ):
+        """
+        使用函数/工具向LLM询问并返回响应。
+
+        参数:
+            messages: 对话消息列表
+            system_msgs: 可选的系统消息，将添加到前面
+            timeout: 请求超时时间（秒）
+            tools: 要使用的工具列表
+            tool_choice: 工具选择策略
+            temperature: 响应的采样温度
+            **kwargs: 其他完成参数
+
+        返回:
+            ChatCompletionMessage: 模型的响应
+
+        异常:
+            ValueError: 如果工具、工具选择或消息无效
+            OpenAIError: 如果API调用重试后失败
+            Exception: 对于意外错误
+        """
+        try:
+            # Validate tool_choice
+            if tool_choice not in ["none", "auto", "required"]:
+                raise ValueError(f"Invalid tool_choice: {tool_choice}")
+
+            # Format messages
+            if system_msgs:
+                system_msgs = self.format_messages(system_msgs)
+                messages = system_msgs + self.format_messages(messages)
+            else:
+                messages = self.format_messages(messages)
+
+            logger.info(f"ask_tool messages: {messages}")
+
+            # Validate tools if provided
+            if tools:
+                for tool in tools:
+                    if not isinstance(tool, dict) or "type" not in tool:
+                        raise ValueError("Each tool must be a dict with 'type' field")
+
+            # Set up the completion request
+            response = await self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                temperature=temperature or self.temperature,
+                max_tokens=self.max_tokens,
+                tools=tools,
+                tool_choice=tool_choice,
+                timeout=timeout,
+                **kwargs,
+            )
+
+            # Check if response is valid
+            if not response.choices or not response.choices[0].message:
+                print(response)
+                raise ValueError("Invalid or empty response from LLM")
+
+            return response.choices[0].message
+
+        except ValueError as ve:
+            logger.error(f"Validation error in ask_tool: {ve}")
+            raise
+        except OpenAIError as oe:
+            if isinstance(oe, AuthenticationError):
+                logger.error("Authentication failed. Check API key.")
+            elif isinstance(oe, RateLimitError):
+                logger.error("Rate limit exceeded. Consider increasing retry attempts.")
+            elif isinstance(oe, APIError):
+                logger.error(f"API error: {oe}")
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error in ask_tool: {e}")
+            raise

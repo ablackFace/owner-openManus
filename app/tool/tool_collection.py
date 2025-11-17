@@ -19,4 +19,5 @@ class ToolCollection:
         return iter(self.tools)
 
     def to_params(self) -> list[dict]:
-        return [tool.to_param() for tool in self.tools]
+        list_params = [tool.to_param() for tool in self.tools]
+        return list_params

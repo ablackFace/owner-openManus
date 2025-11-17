@@ -1,9 +1,17 @@
 from abc import ABC, abstractmethod
+from typing import Optional
+
+from pydantic import Field, ConfigDict
 
 from app.agent.base import BaseAgent
+from app.llm import LLM
 
 
 class ReActAgent(ABC, BaseAgent):
+
+    model_config = ConfigDict(arbitrary_types_allowed=True, extra="allow")
+
+    llm: Optional[LLM] = Field(default_factory=LLM)
 
     @abstractmethod
     async def think(self) -> None:

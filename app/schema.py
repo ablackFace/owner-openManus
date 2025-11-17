@@ -1,4 +1,4 @@
-from typing import List, Literal
+from typing import List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -61,3 +61,41 @@ class Message(BaseModel):
     def system_message(cls, content: str) -> "Message":
         """创建系统消息"""
         return cls(role="system", content=content)
+
+    @classmethod
+    def tool_message(cls, content: str, name, tool_call_id: str) -> "Message":
+        """Create a tool message"""
+        return cls(role="tool", content=content, name=name, tool_call_id=tool_call_id)
+
+    @classmethod
+    def assistant_message(cls, content: Optional[str] = None) -> "Message":
+        """Create an assistant message"""
+        return cls(role="assistant", content=content)
+
+
+# 记忆、上下文管理
+class Memory(BaseModel):
+    messages: List[Message] = Field(default_factory=list)
+    max_messages: int = Field(default=100)
+
+    def add_message(self, message: Message) -> None:
+        """添加消息到记忆"""
+        self.messages.append(message)
+        if len(self.messages) > self.max_messages:
+            self.messages = self.messages[-self.max_messages :]
+
+    def add_messages(self, messages: List[Message]) -> None:
+        """添加多条消息到记忆"""
+        self.messages.extend(messages)
+
+    def clear(self) -> None:
+        """清空所有消息"""
+        self.messages.clear()
+
+    def get_recent_messages(self, n: int) -> List[Message]:
+        """获取最近的n条消息"""
+        return self.messages[-n:]
+
+    def to_dict_list(self) -> List[dict]:
+        """将消息转换为字典列表"""
+        return [msg.to_dict() for msg in self.messages]

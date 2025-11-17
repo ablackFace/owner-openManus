@@ -21,7 +21,7 @@ content extraction, and tab management. Supported actions include:
 
 
 class BrowserUseTool(BaseTool):
-    name: str = NAME
+    name: str = "browser_use"
     description: str = _BROWSER_DESCRIPTION
     parameters: dict = {
         "type": "object",

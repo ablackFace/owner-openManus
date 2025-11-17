@@ -1,8 +1,8 @@
-from typing import List, Optional
+from typing import List, Literal, Optional
 from pydantic import BaseModel, Field
 
 from app.logger import logger
-from app.schema import Message
+from app.schema import Memory, Message
 
 
 class BaseAgent(BaseModel):
@@ -11,13 +11,49 @@ class BaseAgent(BaseModel):
 
     memory: Memory = Field(default_factory=Memory, description="Agent's memory store")
 
-    def __init__(self) -> None:
-        pass
+    @property
+    def messages(self) -> List[Message]:
+        """Retrieve a list of messages from the agent's memory."""
+        return self.memory.messages
 
-    async def run(self, message: Optional[str] = None) -> None:
+    @messages.setter
+    def messages(self, value: List[Message]):
+        """Set the list of messages in the agent's memory."""
+        self.memory.messages = value
 
-        results: List[str] = []
+    async def run(self, request: Optional[str] = None) -> None:
 
-        Message.user_message(message)
+        if request:
+            self.update_memory("user", request)
 
         await self.think()
+
+    def update_memory(
+        self,
+        role: Literal["user", "system", "assistant", "tool"],
+        content: str,
+        **kwargs,
+    ) -> None:
+        """Add a message to the agent's memory.
+
+        Args:
+            role: The role of the message sender (user, system, assistant, tool).
+            content: The message content.
+            **kwargs: Additional arguments (e.g., tool_call_id for tool messages).
+
+        Raises:
+            ValueError: If the role is unsupported.
+        """
+        message_map = {
+            "user": Message.user_message,
+            "system": Message.system_message,
+            "assistant": Message.assistant_message,
+            "tool": lambda content, **kw: Message.tool_message(content, **kw),
+        }
+
+        if role not in message_map:
+            raise ValueError(f"Unsupported message role: {role}")
+
+        msg_factory = message_map[role]
+        msg = msg_factory(content, **kwargs) if role == "tool" else msg_factory(content)
+        self.memory.add_message(msg)
